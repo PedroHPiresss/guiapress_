@@ -1,26 +1,49 @@
 const express = require("express");
 const router = express.Router();
-const Articles = require("./Articles");
+const Category = require("../categories/Category");
+const Article = require("./Articles");
 const slugify = require("slugify");
 
-// Rota para formulário de nova artigo
-router.get("/admin/articles/new", (req, res) => {
-    res.render("admin/articles/new");
+// Listar todos os artigos
+router.get("/admin/articles", (req, res) => {
+    Article.findAll({
+        include: [{ model: Category }]
+    }).then(articles => {
+        Category.findAll().then(categories => { // Busque todas as categorias
+            res.render("admin/articles/index", { articles: articles, categories: categories }); // Passe as categorias para a view
+        }).catch(err => {
+            console.error("Erro ao buscar categorias para a listagem de artigos:", err);
+            res.render("admin/articles/index", { articles: articles, categories: [] }); // Em caso de erro, passe um array vazio
+        });
+    }).catch(err => {
+        console.error("Erro ao buscar artigos:", err);
+        res.redirect("/");
+    });
 });
 
-// Rota para salvar artigo
-router.post("/articles/save", (req, res) => {
-    const title = req.body.title;
-    console.log("Título recebido:", title);
-    const body = req.body.body
+// Formulário para criar novo artigo
+router.get("/admin/articles/new", (req, res) => {
+    Category.findAll().then(categories => {
+        res.render("admin/articles/new", { categories });
+    }).catch(err => {
+        console.error("Erro ao carregar categorias:", err);
+        res.redirect("/admin/articles");
+    });
+});
 
-    if (title != undefined && title.trim() !== "") {
-        Articles.create({
+// Salvar artigo no banco (CORRIGIDO)
+router.post("/articles/save", (req, res) => {
+    const { title, body, category } = req.body;
+
+    console.log("Dados recebidos:", title, body, category);
+
+    if (title && body && category) {
+        Article.create({
             title: title,
             slug: slugify(title),
-            body: body
-        }).then(Articles => {
-            console.log("artigo salva:", Articles);
+            body: body,
+            categoryId: category
+        }).then(() => {
             res.redirect("/admin/articles");
         }).catch(err => {
             console.error("Erro ao salvar artigo:", err);
@@ -31,26 +54,15 @@ router.post("/articles/save", (req, res) => {
     }
 });
 
-// Rota para listagem de artigos
-router.get("/admin/articles", (req, res) => {
-    Articles.findAll().then(articles => {
-        console.log("artigos encontradas:", articles);
-        res.render("admin/articles/index", { articles });
-    }).catch(err => {
-        console.error("Erro ao buscar artigos:", err);
-        res.redirect("/");
-    });
-});
-
-// Rota para deletar uma artigo
+// Deletar artigo
 router.post("/articles/delete", (req, res) => {
     const id = req.body.id;
 
-    if (id != undefined && !isNaN(id)) {
-        Articles.destroy({
+    if (id !== undefined && !isNaN(id)) {
+        Article.destroy({
             where: { id: id }
         }).then(() => {
-            console.log("artigo deletada, ID:", id);
+            console.log("Artigo deletado, ID:", id);
             res.redirect("/admin/articles");
         }).catch(err => {
             console.error("Erro ao deletar artigo:", err);
@@ -59,6 +71,48 @@ router.post("/articles/delete", (req, res) => {
     } else {
         res.redirect("/admin/articles");
     }
+});
+
+// Editar artigo (pegar dados para edição)
+router.get("/admin/articles/edit/:id", (req, res) => {
+    const id = req.params.id;
+
+    Article.findByPk(id, {
+        include: [{ model: Category }]
+    }).then(article => {
+        if (article != undefined) {
+            Category.findAll().then(categories => {
+                res.render("admin/articles/edit", {
+                    article: article,
+                    categories: categories
+                });
+            });
+        } else {
+            res.redirect("/admin/articles");
+        }
+    }).catch(err => {
+        console.error("Erro ao carregar artigo:", err);
+        res.redirect("/admin/articles");
+    });
+});
+
+// Atualizar artigo
+router.post("/articles/update", (req, res) => {
+    const { id, title, body, category } = req.body;
+
+    Article.update({
+        title: title,
+        slug: slugify(title),
+        body: body,
+        categoryId: category
+    }, {
+        where: { id: id }
+    }).then(() => {
+        res.redirect("/admin/articles");
+    }).catch(err => {
+        console.error("Erro ao atualizar artigo:", err);
+        res.redirect("/admin/articles");
+    });
 });
 
 module.exports = router;

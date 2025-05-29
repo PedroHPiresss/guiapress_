@@ -5,12 +5,7 @@ const slugify = require("slugify");
 
 // Rota para formulário de nova categoria
 router.get("/admin/categories/new", (req, res) => {
-    Category.findAll().then(categories => { // Busque todas as categorias
-        res.render("admin/categories/new", { categories: categories }); // Passe as categorias para a view
-    }).catch(err => {
-        console.error("Erro ao buscar categorias para o formulário:", err);
-        res.render("admin/categories/new", { categories: [] }); // Em caso de erro, passe um array vazio para evitar o erro na navbar
-    });
+    res.render("admin/categories/new");
 });
 
 // Rota para salvar categoria
@@ -91,7 +86,7 @@ router.post("/categories/update", (req,res) => {
     },{
         where: {
             id: id
-
+            
         }
     }).then(() => {
         res.redirect("/admin/categories");
